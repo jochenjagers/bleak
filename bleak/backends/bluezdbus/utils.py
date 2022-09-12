@@ -23,10 +23,6 @@ def assert_reply(reply: Message):
     assert reply.message_type == MessageType.METHOD_RETURN
 
 
-def validate_address(address):
-    return _address_regex.match(address) is not None
-
-
 def unpack_variants(dictionary: Dict[str, Variant]) -> Dict[str, Any]:
     """Recursively unpacks all ``Variant`` types in a dictionary to their
     corresponding Python types.
