@@ -59,6 +59,7 @@ from bleak.backends.winrt.service import BleakGATTServiceWinRT
 from bleak.backends.winrt.characteristic import BleakGATTCharacteristicWinRT
 from bleak.backends.winrt.descriptor import BleakGATTDescriptorWinRT
 
+from bleak.utils import address_to_int
 
 logger = logging.getLogger(__name__)
 
@@ -452,27 +453,32 @@ class BleakClientWinRT(BaseBleakClient):
             Boolean on whether the unparing was successful.
 
         """
+        if self._requester:
+            device = self._requester
+        else:
+            device = await BluetoothLEDevice.from_bluetooth_address_async(
+                address_to_int(self.address)
+            )
 
         # New local device information object created since the object from the requester isn't updated
         device_information = await DeviceInformation.create_from_id_async(
-            self._requester.device_information.id
+            device.device_information.id
         )
-        if device_information.pairing.is_paired:
-            unpairing_result = await device_information.pairing.unpair_async()
 
-            if unpairing_result.status not in (
-                DeviceUnpairingResultStatus.UNPAIRED,
-                DeviceUnpairingResultStatus.ALREADY_UNPAIRED,
-            ):
-                raise BleakError(
-                    f"Could not unpair with device: {unpairing_result.status}"
-                )
+        unpairing_result = await device_information.pairing.unpair_async()
 
-            else:
-                logger.info("Unpaired with device.")
-                return True
+        if not self._requester:
+            # close the device object if this was created locally
+            device.close()
 
-        return not device_information.pairing.is_paired
+        if unpairing_result.status not in (
+            DeviceUnpairingResultStatus.UNPAIRED,
+            DeviceUnpairingResultStatus.ALREADY_UNPAIRED,
+        ):
+            raise BleakError(f"Could not unpair with device: {unpairing_result.status}")
+
+        logger.info("Unpaired with device.")
+        return True
 
     # GATT services methods
 
